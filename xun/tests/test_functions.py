@@ -1051,3 +1051,37 @@ def test_different_function_same_name():
         return value
 
     assert run_in_process(f.blueprint()) == 1
+
+
+def test_yield_results():
+    @xun.function()
+    def f():
+        yield g(0) is 0
+        yield g(1) is 1
+
+    @f.interface
+    def g(arg):
+        yield from f()
+
+    assert run_in_process(g.blueprint(0)) == 0
+    assert run_in_process(g.blueprint(1)) == 1
+    with pytest.raises(XunInterfaceError):
+        run_in_process(g.blueprint(2))
+
+
+def test_yield_result_two_interfaces():
+    @xun.function()
+    def f(arg):
+        yield even(arg) is arg * 2
+        yield odd(arg) is arg * 2 - 1
+
+    @f.interface
+    def even(arg):
+        yield from f(arg)
+
+    @f.interface
+    def odd(arg):
+        yield from f(arg)
+
+    assert run_in_process(even.blueprint(3)) == 6
+    assert run_in_process(odd.blueprint(3)) == 5
