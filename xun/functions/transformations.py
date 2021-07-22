@@ -479,8 +479,16 @@ def load_from_store(body: List[ast.AST],
 
     # If No dependencies are referenced in the body of the function, there is
     # nothing to load
+    top_header = [
+        ast.Assign(
+            targets=[ast.Name(id='_xun_store_accessor', ctx=ast.Store())],
+            value=ast.Yield(value=None),
+            type_comment=None,
+        ),
+        ast.Expr(ast.Yield(value=None), type_ignores=[])
+    ]
     if len(discovered_reference.referenced_in_body) == 0:
-        return []
+        return [*top_header]
 
     # Assigned values will be made available to the function body
     assignments = [
@@ -512,24 +520,6 @@ def load_from_store(body: List[ast.AST],
         keywords=[],
     )
 
-    top_header = [
-        ast.ImportFrom(
-            module='xun.functions',
-            names=[
-                ast.alias(
-                    name='CallNode',
-                    asname='_xun_CallNode',
-                ),
-            ],
-            level=0,
-        ),
-        ast.Assign(
-            targets=[ast.Name(id='_xun_store_accessor', ctx=ast.Store())],
-            value=ast.Yield(value=None),
-            type_comment=None,
-        ),
-        ast.Expr(ast.Yield(value=None), type_ignores=[])
-    ]
 
     load_function = ast.FunctionDef(
         name='_xun_load_constants',
