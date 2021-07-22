@@ -14,9 +14,16 @@ class Sequential(Driver):
 
     def run_and_store(self, call, func, store_accessor):
         args, kwargs = store_accessor.resolve_call_args(call)
-        for call, result in func(*args, **kwargs):
-            store_accessor.store(call, result)
-        store_accessor.store_result(call, result)
+        results = func(*args, **kwargs)
+        results.send(None)
+        results.send(store_accessor)
+        while True:
+            try:
+                result_call, result = next(results)
+                store_accessor.store_result(result_call, result)
+            except StopIteration as result:
+                store_accessor.store_result(call, result.value)
+                break
 
     def _exec(self, graph, entry_call, function_images, store_accessor):
         assert nx.is_directed_acyclic_graph(graph)
