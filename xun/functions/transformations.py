@@ -270,6 +270,40 @@ def unpack_unpacking_assignments(copy_only_constants: List[ast.AST]):
 
 
 @pass_by_value
+def yield_yielded(body: List[ast.AST]):
+    class Yields_has_yielded(ast.NodeTransformer):
+        def visit_Expr(self, node):
+            if not isinstance(node.value, ast.Yield):
+                return node
+            if not isinstance(node.value.value, ast.Compare):
+                raise XunSyntaxError
+            if not len(node.value.value.ops) == 1:
+                raise XunSyntaxError
+            if not isinstance(node.value.value.ops[0], ast.Is):
+                raise XunSyntaxError
+            call = node.value.value.left
+            value = node.value.value.comparators[0]
+
+            callnode = ast.Call(
+                func=ast.Attribute(
+                    value=call.func,
+                    attr='callnode',
+                    ctx=ast.Load(),
+                ),
+                args=call.args,
+                keywords=call.keywords,
+            )
+            return ast.Expr(
+                ast.Yield(ast.Tuple(
+                    elts=[callnode, value],
+                    ctx=ast.Load(),
+                ))
+            )
+    y = Yields_has_yielded()
+    return [y.visit(stmt) for stmt in body]
+
+
+@pass_by_value
 def build_xun_graph(unpacked_assignments: List[ast.AST], dependencies={}):
     """Build Xun Graph Transformation
 

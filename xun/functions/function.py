@@ -2,6 +2,8 @@ from .blueprint import Blueprint
 from .function_description import describe
 from .graph import CallNode
 from . import transformations as xform
+from abc import ABC
+from abc import abstractmethod
 from yapf.yapflib.yapf_api import FormatCode
 from yapf.yapflib.style import CreatePEP8Style
 import astor
@@ -16,7 +18,100 @@ def adjusted_line_layout(style=CreatePEP8Style()):
     return style
 
 
-class Function:
+class FunctionInterface(ABC):
+    @property
+    @abstractmethod
+    def name(self):
+        pass
+
+    @property
+    @abstractmethod
+    def hash(self):
+        pass
+
+    @property
+    @abstractmethod
+    def dependencies(self):
+        pass
+
+    @staticmethod
+    def sha256(desc, dependencies):
+        """SHA256
+
+        Calculate a hash identifier for a function with the given description
+        and dependencies.
+
+        Parameters
+        ----------
+        desc : xun.functions.FunctionDescription
+            Description of the hashed function
+        dependencies : mapping of name to Function
+            The dependencies of the hashed function
+
+        Returns
+        -------
+        str
+            Hex digest of function hash
+        """
+        sha256 = hashlib.sha256()
+        sha256.update(desc.src.encode())
+        for dependency in dependencies.values():
+            sha256.update(dependency.hash.encode())
+        truncated = sha256.digest()[:12]
+        return base64.urlsafe_b64encode(truncated).decode()
+
+    def callnode(self, *args, **kwargs):
+        """Call Node
+
+        Create a CallNode for a call to this function
+
+        Parameters
+        ----------
+        *args
+        **kwargs
+
+        Returns
+        -------
+        CallNode
+            CallNode representing a call to this function
+
+        See Also
+        --------
+        CallNode : Symbolic representation of a call to this function
+        """
+        return CallNode(self.name, self.hash, *args, **kwargs)
+
+    def blueprint(self, *args, **kwargs):
+        """Blueprint
+
+        Create a blueprint for a call to this function
+
+        Parameters
+        ----------
+        *args
+        **kwargs
+
+        Returns
+        -------
+        Blueprint
+            Blueprint representing the call to this function
+
+        See Also
+        --------
+        Blueprint : Comprises the call, call graph, and required functions
+        """
+        return Blueprint(self, *args, **kwargs)
+
+    @abstractmethod
+    def graph(self, *args, **kwargs):
+        pass
+
+    @abstractmethod
+    def callable(self, extra_globals=None):
+        pass
+
+
+class Function(FunctionInterface):
     """Function
 
     Xun functions. These are the distributed functions that xun executes. A xun
@@ -100,9 +195,9 @@ class Function:
 
     def __init__(self, desc, dependencies, max_parallel):
         self.desc = desc
-        self.dependencies = dependencies
+        self._dependencies = dependencies
         self.max_parallel = max_parallel
-        self.hash = Function.sha256(desc, dependencies)
+        self._hash = Function.sha256(desc, dependencies)
         self._graph_builder = None
         self.code = self.FunctionCode(self)
 
@@ -110,31 +205,13 @@ class Function:
     def name(self):
         return self.desc.name
 
-    @staticmethod
-    def sha256(desc, dependencies):
-        """SHA256
+    @property
+    def hash(self):
+        return self._hash
 
-        Calculate a hash identifier for a function with the given description
-        and dependencies.
-
-        Parameters
-        ----------
-        desc : xun.functions.FunctionDescription
-            Description of the hashed function
-        dependencies : mapping of name to Function
-            The dependencies of the hashed function
-
-        Returns
-        -------
-        str
-            Hex digest of function hash
-        """
-        sha256 = hashlib.sha256()
-        sha256.update(desc.src.encode())
-        for dependency in dependencies.values():
-            sha256.update(dependency.hash.encode())
-        truncated = sha256.digest()[:12]
-        return base64.urlsafe_b64encode(truncated).decode()
+    @property
+    def dependencies(self):
+        return self._dependencies
 
     @staticmethod
     def from_function(func, max_parallel=None):
@@ -169,48 +246,6 @@ class Function:
         f.dependencies[f.name] = f
 
         return f
-
-    def blueprint(self, *args, **kwargs):
-        """Blueprint
-
-        Create a blueprint for a call to this function
-
-        Parameters
-        ----------
-        *args
-        **kwargs
-
-        Returns
-        -------
-        Blueprint
-            Blueprint representing the call to this function
-
-        See Also
-        --------
-        Blueprint : Comprises the call, call graph, and required functions
-        """
-        return Blueprint(self, *args, **kwargs)
-
-    def callnode(self, *args, **kwargs):
-        """Call Node
-
-        Create a CallNode for a call to this function
-
-        Parameters
-        ----------
-        *args
-        **kwargs
-
-        Returns
-        -------
-        CallNode
-            CallNode representing a call to this function
-
-        See Also
-        --------
-        CallNode : Symbolic representation of a call to this function
-        """
-        return CallNode(self.name, self.hash, *args, **kwargs)
 
     def createGraphBuilder(self):
         """CreateGraphBuilder
@@ -277,8 +312,9 @@ class Function:
         sorted_constants, _ = xform.sort_constants(constants)
         copy_only = xform.copy_only_constants(sorted_constants, deps)
         unpacked = xform.unpack_unpacking_assignments(copy_only)
-        load_from_store = xform.load_from_store(body, unpacked, deps)
-        f = xform.assemble(self.desc, load_from_store, body)
+        yields = xform.yield_yielded(body)
+        load_from_store = xform.load_from_store(yields, unpacked, deps)
+        f = xform.assemble(self.desc, load_from_store, yields)
 
         # Remove any refernces to function dependencies, they may be
         # unpicklable and their code has been replaced
@@ -293,6 +329,9 @@ class Function:
         f.hash = self.hash
 
         return f
+
+    def interface(self, func):
+        return Interface(self, func)
 
 
 def function(max_parallel=None):
@@ -333,3 +372,44 @@ def function(max_parallel=None):
     def decorator(func):
         return Function.from_function(func, max_parallel)
     return decorator
+
+
+class Interface(FunctionInterface):
+    """Interface
+
+    """
+
+    @staticmethod
+    def raise_on_call(*__, **_):
+        raise ValueError('')
+
+    def __init__(self, target, func):
+        self.target = target
+        self.desc = describe(func)
+        self._dependencies = {target.name: target}
+        self._hash = FunctionInterface.sha256(self.desc, self._dependencies)
+        self.callable = None
+
+    @property
+    def name(self):
+        return self.desc.name
+
+    @property
+    def hash(self):
+        return self._hash
+
+    @property
+    def dependencies(self):
+        return self._dependencies
+
+    def graph(self, *args, **kwargs):
+        import networkx as nx
+        graph = nx.DiGraph()
+        graph.add_edge(
+            self.target.callnode(),
+            CallNode(self.name, self.hash, args=args, kwargs=kwargs),
+        )
+        return graph
+
+    def callable(self):
+        return self.callable

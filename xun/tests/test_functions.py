@@ -1059,6 +1059,8 @@ def test_yield_results():
         yield g(0) is 0
         yield g(1) is 1
 
+    print(f.code.task_str)
+
     @f.interface
     def g(arg):
         yield from f()
