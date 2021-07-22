@@ -13,6 +13,7 @@ The code is represented by and manipulated with the python ast module [1][2].
 
 
 from .compatibility import ast
+from .errors import XunSyntaxError
 from .function_description import FunctionDescription
 from .function_image import FunctionImage
 from .util import assignment_target_introduced_names
@@ -270,7 +271,7 @@ def unpack_unpacking_assignments(copy_only_constants: List[ast.AST]):
 
 
 @pass_by_value
-def yield_yielded(body: List[ast.AST]):
+def yield_yielded(body: List[ast.AST], interfaces):
     class Yields_has_yielded(ast.NodeTransformer):
         def visit_Expr(self, node):
             if not isinstance(node.value, ast.Yield):
@@ -284,13 +285,17 @@ def yield_yielded(body: List[ast.AST]):
             call = node.value.value.left
             value = node.value.value.comparators[0]
 
+            if call.func.id not in interfaces:
+                msg = f'Missing interface definition for {call.func.id}'
+                raise XunSyntaxError(msg)
+
             callnode = ast.Call(
-                func=ast.Attribute(
-                    value=call.func,
-                    attr='callnode',
-                    ctx=ast.Load(),
-                ),
-                args=call.args,
+                func=ast.Name(id='_xun_CallNode', ctx=ast.Load()),
+                args=[
+                    ast.Constant(call.func.id, kind=None),
+                    ast.Constant(interfaces[call.func.id].hash, kind=None),
+                    *call.args
+                ],
                 keywords=call.keywords,
             )
             return ast.Expr(
