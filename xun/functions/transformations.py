@@ -491,16 +491,6 @@ def load_from_store(body: List[ast.AST],
             if isinstance(node, (ast.Import, ast.ImportFrom))
         ],
         ast.ImportFrom(
-            module='xun.functions',
-            names=[
-                ast.alias(
-                    name='CallNode',
-                    asname='_xun_CallNode',
-                ),
-            ],
-            level=0,
-        ),
-        ast.ImportFrom(
             module='xun.functions.store',
             names=[
                 ast.alias(
@@ -527,6 +517,25 @@ def load_from_store(body: List[ast.AST],
         keywords=[],
     )
 
+    top_header = [
+        ast.ImportFrom(
+            module='xun.functions',
+            names=[
+                ast.alias(
+                    name='CallNode',
+                    asname='_xun_CallNode',
+                ),
+            ],
+            level=0,
+        ),
+        ast.Assign(
+            targets=[ast.Name(id='_xun_store_accessor', ctx=ast.Store())],
+            value=ast.Yield(value=None),
+            type_comment=None,
+        ),
+        ast.Expr(ast.Yield(value=None), type_ignores=[])
+    ]
+
     load_function = ast.FunctionDef(
         name='_xun_load_constants',
         args=ast.arguments(posonlyargs=[], args=[], vararg=None,
@@ -534,15 +543,6 @@ def load_from_store(body: List[ast.AST],
                            defaults=[]),
         body=[
             *imports,
-            ast.Assign(
-                targets=[ast.Name(id='_xun_store_accessor', ctx=ast.Store())],
-                value=ast.Call(
-                    func=ast.Name(id='_xun_StoreAccessor', ctx=ast.Load()),
-                    args=[ast.Name(id='_xun_store', ctx=ast.Load())],
-                    keywords=[],
-                ),
-                type_comment=None,
-            ),
             *call_nodes,
             ast.Return(deep_load_referenced),
         ],
@@ -570,6 +570,7 @@ def load_from_store(body: List[ast.AST],
     )
 
     lfs = [
+        *top_header,
         load_function,
         load_call,
     ]
