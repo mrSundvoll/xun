@@ -309,13 +309,14 @@ class Function(FunctionInterface):
         Store : xun store
         """
         deps = self.dependencies
+        head = xform.generate_header()
         body, constants = xform.separate_constants(self.desc)
         sorted_constants, _ = xform.sort_constants(constants)
         copy_only = xform.copy_only_constants(sorted_constants, deps)
         unpacked = xform.unpack_unpacking_assignments(copy_only)
         yields = xform.yield_yielded(body, self.interfaces)
         load_from_store = xform.load_from_store(yields, unpacked, deps)
-        f = xform.assemble(self.desc, load_from_store, yields)
+        f = xform.assemble(self.desc, head, load_from_store, yields)
 
         # Remove any refernces to function dependencies, they may be
         # unpicklable and their code has been replaced

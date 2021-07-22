@@ -97,6 +97,25 @@ def pass_by_value(func):
 #
 
 @pass_by_value
+def generate_header():
+    """Generate header
+
+    Provide a header with necessary statements.
+
+    Returns
+    -------
+    List[ast.Ast]
+    """
+    return [
+        ast.Assign(
+            targets=[ast.Name(id='_xun_store_accessor', ctx=ast.Store())],
+            value=ast.Yield(value=None),
+            type_comment=None,
+        ),
+        ast.Expr(ast.Yield(value=None), type_ignores=[]),
+    ]
+
+@pass_by_value
 def separate_constants(func_desc: FunctionDescription):
     """Separate constants
 
@@ -447,16 +466,8 @@ def load_from_store(body: List[ast.AST],
 
     # If No dependencies are referenced in the body of the function, there is
     # nothing to load
-    top_header = [
-        ast.Assign(
-            targets=[ast.Name(id='_xun_store_accessor', ctx=ast.Store())],
-            value=ast.Yield(value=None),
-            type_comment=None,
-        ),
-        ast.Expr(ast.Yield(value=None), type_ignores=[])
-    ]
     if len(discovered_reference.referenced_in_body) == 0:
-        return [*top_header]
+        return []
 
     # Assigned values will be made available to the function body
     assignments = [
@@ -520,7 +531,6 @@ def load_from_store(body: List[ast.AST],
     )
 
     lfs = [
-        *top_header,
         load_function,
         load_call,
     ]

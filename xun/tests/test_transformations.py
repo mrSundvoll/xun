@@ -144,13 +144,14 @@ def test_load_from_store_transformation():
         pass
     known_functions = {'f': dummy, 'h': dummy, 'g': dummy}
 
+    head = xform.generate_header()
     body, constants = xform.separate_constants(desc)
     sorted_constants, _ = xform.sort_constants(constants)
     copy_only = xform.copy_only_constants(sorted_constants, known_functions)
     unpacked = xform.unpack_unpacking_assignments(copy_only)
     load_from_store = xform.load_from_store(body, unpacked, known_functions)
 
-    generated = [*load_from_store, *body]
+    generated = [*head, *load_from_store, *body]
     reference = reference_source.body[0].body
 
     ok, diff = check_ast_equals(generated, reference)
