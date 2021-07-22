@@ -289,18 +289,9 @@ def yield_yielded(body: List[ast.AST], interfaces):
                 msg = f'Missing interface definition for {call.func.id}'
                 raise XunSyntaxError(msg)
 
-            callnode = ast.Call(
-                func=ast.Name(id='_xun_CallNode', ctx=ast.Load()),
-                args=[
-                    ast.Constant(call.func.id, kind=None),
-                    ast.Constant(interfaces[call.func.id].hash, kind=None),
-                    *call.args
-                ],
-                keywords=call.keywords,
-            )
             return ast.Expr(
                 ast.Yield(ast.Tuple(
-                    elts=[callnode, value],
+                    elts=[call, value],
                     ctx=ast.Load(),
                 ))
             )
@@ -454,29 +445,6 @@ def load_from_store(body: List[ast.AST],
             node.func.id in dependencies
         )
 
-    class NodeMapper(ast.NodeTransformer):
-        def map(self, nodes):
-            transformed = (self.visit(copy.deepcopy(node)) for node in nodes)
-            return [node for node in transformed if node is not None]
-
-    class Call2CallNode(NodeMapper):
-        def visit_Call(self, node):
-            node = self.generic_visit(node)
-
-            if not is_xun_call(node):
-                return node
-
-            construct_call = ast.Call(
-                func=ast.Name(id='_xun_CallNode', ctx=ast.Load()),
-                args=[
-                    ast.Constant(node.func.id, kind=None),
-                    ast.Constant(dependencies[node.func.id].hash, kind=None),
-                    *node.args
-                ],
-                keywords=node.keywords,
-            )
-            return construct_call
-
     # If No dependencies are referenced in the body of the function, there is
     # nothing to load
     top_header = [
@@ -494,9 +462,6 @@ def load_from_store(body: List[ast.AST],
     assignments = [
         node for node in unpacked_assignments if isinstance(node, ast.Assign)
     ]
-
-    # Converts calls to xun functions to CallNodes
-    call_nodes = Call2CallNode().map(assignments)
 
     imports = [
         *[
@@ -528,7 +493,7 @@ def load_from_store(body: List[ast.AST],
                            defaults=[]),
         body=[
             *imports,
-            *call_nodes,
+            *assignments,
             ast.Return(deep_load_referenced),
         ],
         decorator_list=[],

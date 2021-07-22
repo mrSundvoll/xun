@@ -16,6 +16,8 @@ global_variable = 'global_variable'
 def test_functions():
     from .reference import decending_fibonacci
 
+    print(decending_fibonacci.code.task_str)
+
     blueprint = decending_fibonacci.blueprint(6)
     result = run_in_process(blueprint)
 
@@ -1062,6 +1064,8 @@ def test_yield_results():
     @f.interface
     def g(arg):
         yield from f()
+
+    print(f.code.task_str)
 
     assert run_in_process(g.blueprint(0)) == 0
     assert run_in_process(g.blueprint(1)) == 1
