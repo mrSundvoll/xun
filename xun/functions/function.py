@@ -388,7 +388,7 @@ class Interface(FunctionInterface):
         self.desc = describe(func)
         self._dependencies = {target.name: target}
         self._hash = FunctionInterface.sha256(self.desc, self._dependencies)
-        self.callable = None
+        self._callable = None
 
     @property
     def name(self):
@@ -407,9 +407,9 @@ class Interface(FunctionInterface):
         graph = nx.DiGraph()
         graph.add_edge(
             self.target.callnode(),
-            CallNode(self.name, self.hash, args=args, kwargs=kwargs),
+            CallNode(self.name, self.hash, *args, **kwargs),
         )
         return graph
 
-    def callable(self):
-        return self.callable
+    def callable(self, extra_globals=None):
+        return self._callable
