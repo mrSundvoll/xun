@@ -125,15 +125,14 @@ def test_load_from_store_transformation():
 
     @xun.function_ast
     def reference_source():
-        from xun.functions import CallNode as _xun_CallNode
         _xun_store_accessor = yield
         yield
         def _xun_load_constants():
-            from xun.functions import unpack as _xun_unpack
+            from xun.functions import unpack as _xun_unpack  # noqa: F401
             from copy import deepcopy as _xun_deepcopy  # noqa: F401
-            a = _xun_CallNode('f', 'K9ZuxDD5x6atLkNd')
-            b = _xun_CallNode('h', 'K9ZuxDD5x6atLkNd', a)
-            c = _xun_CallNode('g', 'K9ZuxDD5x6atLkNd', b)
+            a = f()
+            b = h(a)
+            c = g(b)
             return _xun_store_accessor.deepload(a, c)
         a, c = _xun_load_constants()
         value = a + c
