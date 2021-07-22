@@ -411,5 +411,5 @@ class Interface(FunctionInterface):
         )
         return graph
 
-    def callable(self):
+    def callable(self, extra_globals=None):
         return self._callable
