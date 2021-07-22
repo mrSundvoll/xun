@@ -407,7 +407,7 @@ class Interface(FunctionInterface):
         graph = nx.DiGraph()
         graph.add_edge(
             self.target.callnode(),
-            CallNode(self.name, self.hash, args=args, kwargs=kwargs),
+            CallNode(self.name, self.hash, *args, **kwargs),
         )
         return graph
 
