@@ -137,7 +137,7 @@ def test_load_from_store_transformation():
             return _xun_store_accessor.deepload(a, c)
         a, c = _xun_load_constants()
         value = a + c
-        return _xun_CallNode('func'), value
+        return value
 
     # Dummy dependency
     @xun.function()
