@@ -196,6 +196,7 @@ class Function(FunctionInterface):
     def __init__(self, desc, dependencies, max_parallel):
         self.desc = desc
         self._dependencies = dependencies
+        self.interfaces = {}
         self.max_parallel = max_parallel
         self._hash = Function.sha256(desc, dependencies)
         self._graph_builder = None
@@ -312,7 +313,7 @@ class Function(FunctionInterface):
         sorted_constants, _ = xform.sort_constants(constants)
         copy_only = xform.copy_only_constants(sorted_constants, deps)
         unpacked = xform.unpack_unpacking_assignments(copy_only)
-        yields = xform.yield_yielded(body)
+        yields = xform.yield_yielded(body, self.interfaces)
         load_from_store = xform.load_from_store(yields, unpacked, deps)
         f = xform.assemble(self.desc, load_from_store, yields)
 
@@ -331,7 +332,10 @@ class Function(FunctionInterface):
         return f
 
     def interface(self, func):
-        return Interface(self, func)
+        interface_desc = describe(func)
+        interface = Interface(self, interface_desc)
+        self.interfaces[interface.name] = interface
+        return interface
 
 
 def function(max_parallel=None):
@@ -383,9 +387,9 @@ class Interface(FunctionInterface):
     def raise_on_call(*__, **_):
         raise ValueError('')
 
-    def __init__(self, target, func):
+    def __init__(self, target, desc):
         self.target = target
-        self.desc = describe(func)
+        self.desc = desc
         self._dependencies = {target.name: target}
         self._hash = FunctionInterface.sha256(self.desc, self._dependencies)
         self._callable = None
