@@ -1071,6 +1071,20 @@ def test_yield_results():
         run_in_process(g.blueprint(2))
 
 
+def test_yield_failure_on_multiple_write():
+    @xun.function()
+    def f():
+        yield g(0) is 0
+        yield g(0) is 1
+
+    @f.interface
+    def g(arg):
+        yield from f()
+
+    with pytest.raises(XunInterfaceError):
+        run_in_process(f.blueprint())
+
+
 def test_yield_result_two_interfaces():
     @xun.function()
     def f(arg):
